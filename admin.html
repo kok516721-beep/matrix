@@ -180,7 +180,35 @@
                 drops[i]++;
             }
         }
-        setInterval(draw, 33);
+        setInterval(draw, 50);
+        // ၁။ Import မှာ signOut ထပ်ဖြည့်ပါ
+import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// ၂။ Auth ကို initialize လုပ်ပါ (db အပေါ်မှာ ထားလို့ရပါတယ်)
+const auth = getAuth(app);
+
+// ၃။ Logout Logic
+document.getElementById('btnLogout').onclick = async () => {
+    if(confirm("Are you sure you want to exit the terminal?")) {
+        try {
+            await signOut(auth);
+            window.location.href = "admin-login.html"; // Login page ကို ပြန်ပို့မယ်
+        } catch (error) {
+            alert("Error logging out: " + error.message);
+        }
+    }
+};
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// Login ဝင်ထားခြင်း ရှိမရှိ စစ်ဆေးခြင်း
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        // Login မဝင်ထားရင် Login page ကို ပြန်မောင်းထုတ်မယ်
+        window.location.href = "admin_login.html";
+    }
+});
+        
+        
     </script>
 </body>
         </html>
