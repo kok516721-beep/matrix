@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix - User Home</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; }
+        .header { border-bottom: 2px solid #0f0; padding: 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); }
+        .main-content { padding: 40px; text-align: center; }
+        .btn-exit { border: 1px solid #f00; color: #f00; background: transparent; padding: 8px 15px; cursor: pointer; font-family: 'Courier New'; }
+        .btn-exit:hover { background: #f00; color: #000; }
+        .data-card { border: 1px solid #0f0; display: inline-block; padding: 20px; margin-top: 20px; background: rgba(0,30,0,0.5); }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.5; }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div class="header">
+        <div id="userDisplay">IDENTIFYING...</div>
+        <button class="btn-exit" id="btnLogout">LOGOUT</button>
+    </div>
+
+    <div class="main-content">
+        <h1>Welcome to the Matrix, <span id="userName">User</span></h1>
+        <div class="data-card">
+            <p>Your access is verified.</p>
+            <p>Status: <span style="color: #fff;">ACTIVE ENTITY</span></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const name = userDoc.data().fullName;
+                    document.getElementById('userDisplay').innerText = "CONNECTED: " + name;
+                    document.getElementById('userName').innerText = name;
+                }
+            } else {
+                window.location.href = "login.html"; // Login မဝင်ထားရင် ပြန်ကန်ထုတ်မယ်
+            }
+        });
+
+        document.getElementById('btnLogout').onclick = () => {
+            signOut(auth).then(() => { window.location.href = "login.html"; });
+        };
+
+        // Matrix Bg Code အတူတူပါပဲ (အပေါ်က Page ကနေ ကူးထည့်နိုင်ပါတယ်)
+    </script>
+</body>
+</html>
