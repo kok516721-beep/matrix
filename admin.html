@@ -32,6 +32,22 @@
         
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #000; border: 2px solid #0f0; padding: 20px; z-index: 100; box-shadow: 0 0 30px #0f0; width: 280px; }
         .modal input { width: 90%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #0f0; color: #0f0; }
+        .logout-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 20;
+}
+.btn-logout {
+    border-color: #f00;
+    color: #f00;
+    padding: 8px 15px;
+}
+.btn-logout:hover {
+    background: #f00;
+    color: #000;
+}
+        
     </style>
 </head>
 <body>
@@ -39,7 +55,11 @@
     <canvas id="bg"></canvas>
 
     <div class="container">
-        <h1>[ SYSTEM ADMINISTRATION TERMINAL ]</h1>
+        <div class="logout-container">
+    <button class="btn btn-logout" id="btnLogout">TERMINAL EXIT [LOGOUT]</button>
+        </div>
+        
+        <h1>[ Admin panel 😁😁😁😁😁😁😁😁]</h1>
         
         <div class="stats-box">
             <div class="stat-item">ACTIVE ENTITIES: <span id="userCount">0</span></div>
