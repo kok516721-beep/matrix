@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Central Command - Admin</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        .container { padding: 20px; z-index: 10; position: relative; }
+        h1 { text-align: center; text-shadow: 0 0 15px #0f0; border-bottom: 2px solid #0f0; padding-bottom: 10px; }
+        
+        .stats-box { display: flex; justify-content: space-around; margin-bottom: 30px; background: rgba(0, 30, 0, 0.8); border: 1px solid #0f0; padding: 15px; box-shadow: 0 0 10px #0f0; }
+        .stat-item { text-align: center; font-size: 20px; font-weight: bold; }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: rgba(0, 15, 0, 0.9); font-size: 14px; }
+        th, td { border: 1px solid #0f0; padding: 10px; text-align: left; }
+        th { background: #0f0; color: #000; }
+        tr:hover { background: rgba(0, 255, 0, 0.1); }
+
+        /* Password ကို လုံခြုံရေးအရ နည်းနည်းမှိန်ထားမယ် */
+        .pass-text { color: #88ff88; font-style: italic; }
+
+        .btn { padding: 5px 10px; cursor: pointer; border: 1px solid #0f0; background: transparent; color: #0f0; font-family: 'Courier New'; font-weight: bold; margin-bottom: 2px; display: inline-block; }
+        .btn:hover { background: #0f0; color: #000; }
+        .btn-delete { border-color: #f00; color: #f00; }
+        .btn-delete:hover { background: #f00; color: #000; }
+        .btn-block { border-color: #ffa500; color: #ffa500; }
+        .btn-block:hover { background: #ffa500; color: #000; }
+
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.3; }
+        
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #000; border: 2px solid #0f0; padding: 20px; z-index: 100; box-shadow: 0 0 30px #0f0; width: 280px; }
+        .modal input { width: 90%; padding: 10px; margin: 10px 0; background: #000; border: 1px solid #0f0; color: #0f0; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+
+    <div class="container">
+        <h1>[ SYSTEM ADMINISTRATION TERMINAL ]</h1>
+        
+        <div class="stats-box">
+            <div class="stat-item">ACTIVE ENTITIES: <span id="userCount">0</span></div>
+            <div class="stat-item">SYSTEM STATUS: <span style="color: #0f0;">SECURE</span></div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>NAME</th>
+                        <th>EMAIL</th>
+                        <th>PASSWORD</th> <th>ROLE</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="userTable">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <h3>>> MODIFY ENTITY <<</h3>
+        <input type="text" id="editName" placeholder="New Name">
+        <button class="btn" id="saveEdit">UPDATE</button>
+        <button class="btn btn-delete" onclick="document.getElementById('editModal').style.display='none'">CANCEL</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const userTable = document.getElementById('userTable');
+        const userCount = document.getElementById('userCount');
+
+        let currentEditId = null;
+
+        // User Data ပြသခြင်း
+        onSnapshot(collection(db, "users"), (snapshot) => {
+            userTable.innerHTML = "";
+            userCount.innerText = snapshot.size;
+
+            snapshot.forEach((userDoc) => {
+                const data = userDoc.data();
+                const id = userDoc.id;
+                
+                // Password ကို plainPassword field ထဲကနေ ဆွဲထုတ်မယ်
+                const displayPass = data.plainPassword ? data.plainPassword : "N/A";
+
+                userTable.innerHTML += `
+                    <tr>
+                        <td>${data.fullName}</td>
+                        <td>${data.email}</td>
+                        <td class="pass-text">${displayPass}</td>
+                        <td style="color: ${data.role === 'blocked' ? '#f00' : '#0f0'}">${data.role.toUpperCase()}</td>
+                        <td>
+                            <button class="btn" onclick="openEditModal('${id}', '${data.fullName}')">EDIT</button>
+                            <button class="btn btn-block" onclick="toggleBlock('${id}', '${data.role}')">${data.role === 'blocked' ? 'UNBLOCK' : 'BLOCK'}</button>
+                            <button class="btn btn-delete" onclick="deleteUser('${id}')">DELETE</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        // Functions
+        window.openEditModal = (id, name) => {
+            currentEditId = id;
+            document.getElementById('editName').value = name;
+            document.getElementById('editModal').style.display = 'block';
+        };
+
+        document.getElementById('saveEdit').onclick = async () => {
+            const newName = document.getElementById('editName').value;
+            await updateDoc(doc(db, "users", currentEditId), { fullName: newName });
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        window.toggleBlock = async (id, currentRole) => {
+            const newRole = currentRole === "blocked" ? "user" : "blocked";
+            await updateDoc(doc(db, "users", id), { role: newRole });
+        };
+
+        window.deleteUser = async (id) => {
+            if(confirm("Terminate this entity?")) {
+                await deleteDoc(doc(db, "users", id));
+            }
+        };
+
+        // Matrix Background
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = fontSize + "px monospace";
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(draw, 33);
+    </script>
+</body>
+        </html>
+          
