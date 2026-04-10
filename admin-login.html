@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix Terminal - Admin Access</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .login-box { background: rgba(0, 20, 0, 0.9); border: 2px solid #0f0; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px #0f0; width: 320px; z-index: 10; }
+        h2 { text-shadow: 0 0 10px #0f0; text-align: center; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; }
+        input { width: 100%; padding: 10px; background: #000; border: 1px solid #0f0; color: #0f0; box-sizing: border-box; outline: none; }
+        input:focus { box-shadow: 0 0 10px #0f0; }
+        button { width: 100%; padding: 12px; background: #0f0; color: #000; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #0a0; box-shadow: 0 0 15px #0f0; }
+        .status { margin-top: 15px; font-size: 14px; text-align: center; min-height: 20px; color: #f00; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+
+    <div class="login-box">
+        <h2>>> ADMIN LOGIN <<</h2>
+        <div class="input-group"><input type="email" id="email" placeholder="Admin Email" required></div>
+        <div class="input-group"><input type="password" id="password" placeholder="Key Phrase" required></div>
+        <button id="btnLogin">AUTHORIZE ACCESS</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const btnLogin = document.getElementById('btnLogin');
+        const statusDiv = document.getElementById('status');
+
+        btnLogin.onclick = async () => {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+
+            // Admin email ကို ဒီမှာ သတ်မှတ်ပေးထားပါတယ် (ကိုယ့် email နဲ့ လဲလို့ရပါတယ်)
+            const ADMIN_EMAIL = "soeer71@gmail.com"; 
+
+            if (email !== ADMIN_EMAIL) {
+                statusDiv.innerText = "ACCESS DENIED: Unauthorized Admin Email.";
+                return;
+            }
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                statusDiv.style.color = "#0f0";
+                statusDiv.innerText = "ACCESS GRANTED. Redirecting...";
+                
+                // Login အောင်မြင်ရင် Dashboard ကို သွားမယ်
+                setTimeout(() => { window.location.href = "admin.html"; }, 1500);
+
+            } catch (error) {
+                statusDiv.innerText = "FAILED: Authentication Error.";
+            }
+        };
+
+        // Matrix Background Script
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0";
+            ctx.font = fontSize + "px monospace";
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(draw, 33);
+    </script>
+</body>
+        </html>
+          
