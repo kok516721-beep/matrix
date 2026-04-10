@@ -15,6 +15,30 @@
         button:hover { background: #0a0; box-shadow: 0 0 15px #0f0; }
         .status { margin-top: 15px; font-size: 14px; text-align: center; min-height: 20px; font-weight: bold; }
         #bg { position: fixed; top: 0; left: 0; z-index: -1; }
+        .links {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.links a {
+    color: #0f0;
+    text-decoration: none;
+    display: inline-block;
+    margin-bottom: 10px;
+    opacity: 0.8;
+    transition: 0.3s;
+}
+
+.links a:hover {
+    opacity: 1;
+    text-shadow: 0 0 10px #0f0;
+}
+
+.forgot-link {
+    color: #008800 !important; /* Forgot password ကို အရောင်နည်းနည်းမှိန်ထားတာ ပိုမိုက်ပါတယ် */
+}
+        
     </style>
 </head>
 <body>
@@ -26,7 +50,11 @@
         <div class="input-group"><input type="text" id="fullName" placeholder="Full Name" required></div>
         <div class="input-group"><input type="email" id="email" placeholder="Gmail Address" required></div>
         <div class="input-group"><input type="password" id="password" placeholder="Access Password" required></div>
-        <button id="btnRegister">EXECUTE REGISTRATION</button>
+        <button id="btnRegister">REGISTRATION</button>
+        <div class="links">
+    <a href="login.html">>> ALREADY HAVE AN IDENTITY? (LOGIN)</a><br>
+    <a href="forgot-password.html" class="forgot-link">>> RECOVER ACCESS (FORGOT PASSWORD)</a>
+        </div>    
         <div id="status" class="status"></div>
     </div>
 
