@@ -112,6 +112,8 @@
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
+  const auth = getAuth(app); 
+  const db = getFirestore(app);     
 
         // --- ၂။ Register လုပ်ဆောင်ချက် ---
         const btnRegister = document.getElementById('btnRegister');
