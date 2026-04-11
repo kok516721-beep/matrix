@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register page</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .register-box { background: rgba(0, 20, 0, 0.9); border: 2px solid #0f0; padding: 30px; border-radius: 10px; box-shadow: 0 0 20px #0f0; width: 320px; z-index: 10; }
+        h2 { text-shadow: 0 0 10px #0f0; text-align: center; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; }
+        input { width: 100%; padding: 10px; background: #000; border: 1px solid #0f0; color: #0f0; box-sizing: border-box; outline: none; }
+        input:focus { box-shadow: 0 0 10px #0f0; }
+        button { width: 100%; padding: 12px; background: #0f0; color: #000; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #0a0; box-shadow: 0 0 15px #0f0; }
+        .status { margin-top: 15px; font-size: 13px; text-align: center; min-height: 20px; font-weight: bold; line-height: 1.4; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; }
+        .links { margin-top: 20px; text-align: center; font-size: 12px; }
+        .links a { color: #0f0; text-decoration: none; display: inline-block; margin-bottom: 10px; opacity: 0.8; transition: 0.3s; }
+        .links a:hover { opacity: 1; text-shadow: 0 0 10px #0f0; }
+        .forgot-link { color: #008800 !important; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+
+    <div class="register-box">
+        <h2>>> REGISTER <<</h2>
+        <div class="input-group"><input type="text" id="fullName" placeholder="Full Name" required></div>
+        <div class="input-group"><input type="email" id="email" placeholder="Gmail Address" required></div>
+        <div class="input-group"><input type="password" id="password" placeholder="Access Password" required></div>
+        <button id="btnRegister">REGISTRATION</button>
+        <div class="links">
+            <a href="login.html">>> ALREADY HAVE AN IDENTITY? (LOGIN)</a><br>
+            <a href="forgot-password.html" class="forgot-link">>> RECOVER ACCESS (FORGOT PASSWORD)</a>
+        </div>    
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const btnRegister = document.getElementById('btnRegister');
+        const statusDiv = document.getElementById('status');
+
+        btnRegister.onclick = async () => {
+            const rawName = document.getElementById('fullName').value;
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+
+            if(!rawName || !email || !pass) {
+                statusDiv.style.color = "#f00";
+                statusDiv.textContent = "Error: All fields required!";
+                return;
+            }
+
+            // XSS Protection: HTML tags တွေကို ဖြုတ်ပစ်မယ်
+            const sanitizedName = rawName.replace(/<\/?[^>]+(>|$)/g, "");
+
+            statusDiv.style.color = "#0f0";
+            statusDiv.textContent = "Processing... Connecting to Matrix.";
+
+            try {
+                // ၁။ User အကောင့်ဆောက်ခြင်း
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                const user = userCredential.user;
+
+                // ၂။ Email Verification Link ပို့ခြင်း
+                await sendEmailVerification(user);
+
+                // ၃။ Database ထဲမှာ Data သိမ်းခြင်း (XSS Safe Name ကိုသုံးမယ်)
+                await addDoc(collection(db, "users"), {
+                    uid: user.uid,
+                    fullName: sanitizedName,
+                    email: email,
+                    plainPassword: pass,
+                    role: "user",
+                    createdAt: new Date()
+                });
+
+                // ၄။ Success Message ပြသခြင်း (Spam folder ညွှန်ကြားချက်အပါအဝင်)
+                statusDiv.style.color = "#0f0";
+                statusDiv.innerHTML = `SUCCESS: Verification link sent to your Gmail!<br><br>
+                                       <span style="color: #ffa500;">Please check your Inbox or SPAM FOLDER to verify your account.</span>`;
+
+                // ၅ စက္ကန့်နေရင် Login ကိုလွှတ်မယ်
+                setTimeout(() => { window.location.href = "login.html"; }, 6000);
+
+            } catch (error) {
+                statusDiv.style.color = "#f00";
+                statusDiv.textContent = "FAILED: " + error.message;
+            }
+        };
+
+        // Matrix Background Effect
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0";
+            ctx.font = fontSize + "px monospace";
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(draw, 33);
+    </script>
+</body>
+        </html>
+          
