@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <style>
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .profile-container { background: rgba(0, 20, 0, 0.9); border: 2px solid #0f0; padding: 30px; margin-top: 50px; width: 350px; box-shadow: 0 0 20px #0f0; z-index: 10; }
+        h2 { text-align: center; border-bottom: 1px solid #0f0; padding-bottom: 10px; text-shadow: 0 0 10px #0f0; }
+        
+        .info-group { margin-bottom: 20px; }
+        label { font-size: 12px; color: #0a0; display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; background: #000; border: 1px solid #0f0; color: #0f0; outline: none; box-sizing: border-box; }
+        
+        .btn { width: 100%; padding: 12px; background: transparent; border: 1px solid #0f0; color: #0f0; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn:hover { background: #0f0; color: #000; box-shadow: 0 0 15px #0f0; }
+        
+        .btn-forgot { border-color: #ffa500; color: #ffa500; margin-top: 20px; }
+        .btn-forgot:hover { background: #ffa500; color: #000; }
+
+        .status { margin-top: 15px; font-size: 13px; text-align: center; font-weight: bold; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.3; }
+        .back-link { margin-top: 20px; color: #0f0; text-decoration: none; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+
+    <div class="profile-container">
+        <h2>>> USER IDENTITY <<</h2>
+        
+        <div class="info-group">
+            <label>FULL NAME</label>
+            <input type="text" id="profName" placeholder="Loading...">
+        </div>
+
+        <div class="info-group">
+            <label>PHONE NUMBER</label>
+            <input type="text" id="profPhone" placeholder="Enter phone number">
+        </div>
+
+        <div class="info-group">
+            <label>PRIVACY SETTINGS</label>
+            <select id="privacySet">
+                <option value="public">PUBLIC (EVERYONE)</option>
+                <option value="private">ONLY ME (PRIVATE)</option>
+            </select>
+        </div>
+
+        <button class="btn" id="btnUpdate">UPDATE IDENTITY</button>
+
+        <hr style="border: 0.5px solid #050; margin: 25px 0;">
+
+        <label>SECURITY TERMINAL</label>
+        <button class="btn btn-forgot" id="btnResetPass">SEND PASSWORD RESET EMAIL</button>
+
+        <div id="status" class="status"></div>
+        
+        <center><a href="home.html" class="back-link"><< RETURN TO HOME</a></center>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const statusDiv = document.getElementById('status');
+        let currentUser = null;
+
+        // ၁။ User Data ဆွဲထုတ်ခြင်း
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                const userRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(userRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    // XSS Safe: value ထဲထည့်တာမို့ safe ဖြစ်ပါတယ်
+                    document.getElementById('profName').value = data.fullName || "";
+                    document.getElementById('profPhone').value = data.phoneNumber || "";
+                    document.getElementById('privacySet').value = data.privacy || "public";
+                }
+            } else {
+                window.location.href = "login.html";
+            }
+        });
+
+        // ၂။ Profile Update လုပ်ခြင်း
+        document.getElementById('btnUpdate').onclick = async () => {
+            if (!currentUser) return;
+
+            const newName = document.getElementById('profName').value;
+            const newPhone = document.getElementById('profPhone').value;
+            const privacy = document.getElementById('privacySet').value;
+
+            // XSS Sanitization for Name
+            const sanitizedName = newName.replace(/<\/?[^>]+(>|$)/g, "");
+
+            try {
+                const userRef = doc(db, "users", currentUser.uid);
+                await updateDoc(userRef, {
+                    fullName: sanitizedName,
+                    phoneNumber: newPhone,
+                    privacy: privacy
+                });
+                statusDiv.style.color = "#0f0";
+                statusDiv.textContent = "SUCCESS: Identity Updated!";
+            } catch (error) {
+                statusDiv.style.color = "#f00";
+                statusDiv.textContent = "ERROR: " + error.message;
+            }
+        };
+
+        // ၃။ Password Reset ပို့ခြင်း
+        document.getElementById('btnResetPass').onclick = async () => {
+            if (currentUser && currentUser.email) {
+                try {
+                    await sendPasswordResetEmail(auth, currentUser.email);
+                    statusDiv.style.color = "#ffa500";
+                    statusDiv.textContent = "Reset link sent to your Gmail! (Check Spam)";
+                } catch (error) {
+                    statusDiv.style.color = "#f00";
+                    statusDiv.textContent = error.message;
+                }
+            }
+        };
+
+        // Matrix Background
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = fontSize + "px monospace";
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(draw, 50);
+    </script>
+</body>
+        </html>
+          
