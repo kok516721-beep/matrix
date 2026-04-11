@@ -85,7 +85,7 @@
                 await sendEmailVerification(user);
 
                 // ၃။ Database ထဲမှာ Data သိမ်းခြင်း (XSS Safe Name ကိုသုံးမယ်)
-                await addDoc(collection(db, "users"), {
+                await setDoc(collection(db, "users"), {
                     uid: user.uid,
                     fullName: sanitizedName,
                     email: email,
