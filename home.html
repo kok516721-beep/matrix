@@ -5,27 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matrix - User Home</title>
     <style>
-        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; }
-        .header { border-bottom: 2px solid #0f0; padding: 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); }
+        body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        
+        /* Navbar Style */
+        .navbar { 
+            border-bottom: 2px solid #0f0; 
+            padding: 15px 25px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(0, 20, 0, 0.9);
+            box-shadow: 0 0 15px #0f0;
+        }
+
+        .nav-links { display: flex; gap: 20px; }
+
+        .btn-nav { 
+            border: 1px solid #0f0; 
+            color: #0f0; 
+            background: transparent; 
+            padding: 8px 15px; 
+            cursor: pointer; 
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-nav:hover { background: #0f0; color: #000; box-shadow: 0 0 10px #0f0; }
+        .btn-exit { border-color: #f00; color: #f00; }
+        .btn-exit:hover { background: #f00; color: #000; box-shadow: 0 0 10px #f00; }
+
         .main-content { padding: 40px; text-align: center; }
-        .btn-exit { border: 1px solid #f00; color: #f00; background: transparent; padding: 8px 15px; cursor: pointer; font-family: 'Courier New'; }
-        .btn-exit:hover { background: #f00; color: #000; }
-        .data-card { border: 1px solid #0f0; display: inline-block; padding: 20px; margin-top: 20px; background: rgba(0,30,0,0.5); }
-        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.5; }
+        .data-card { 
+            border: 1px solid #0f0; 
+            display: inline-block; 
+            padding: 30px; 
+            margin-top: 30px; 
+            background: rgba(0,30,0,0.5); 
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+
+        h1 { text-shadow: 0 0 10px #0f0; font-size: 2.5rem; }
+        .status-active { color: #fff; font-weight: bold; text-shadow: 0 0 5px #0f0; }
+
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.4; }
     </style>
 </head>
 <body>
+
     <canvas id="bg"></canvas>
-    <div class="header">
-        <div id="userDisplay">IDENTIFYING...</div>
-        <button class="btn-exit" id="btnLogout">LOGOUT</button>
+
+    <div class="navbar">
+        <div id="userDisplay" style="font-weight: bold;">[ CONNECTING... ]</div>
+        <div class="nav-links">
+            <a href="profile.html" class="btn-nav">USER PROFILE</a>
+            <button class="btn-nav btn-exit" id="btnLogout">TERMINAL EXIT</button>
+        </div>
     </div>
 
     <div class="main-content">
-        <h1>Welcome to the Matrix, <span id="userName">User</span></h1>
+        <h1>Welcome to the Matrix, <span id="userName">Unknown Entity</span></h1>
+        
         <div class="data-card">
-            <p>Your access is verified.</p>
-            <p>Status: <span style="color: #fff;">ACTIVE ENTITY</span></p>
+            <p>Authorization Level: <span style="color: #0f0;">Level 1 (User)</span></p>
+            <p>System Status: <span class="status-active">ACTIVE & SECURED</span></p>
+            <p style="font-size: 12px; margin-top: 20px; opacity: 0.7;">
+                Encryption: AES-256 Verified <br>
+                Your session is being monitored.
+            </p>
         </div>
     </div>
 
@@ -47,24 +95,61 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // UI Elements
+        const userNameSpan = document.getElementById('userName');
+        const userDisplayDiv = document.getElementById('userDisplay');
+
+        // Login Status & Data Fetching (XSS Protected)
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (userDoc.exists()) {
-                    const name = userDoc.data().fullName;
-                    document.getElementById('userDisplay').innerText = "CONNECTED: " + name;
-                    document.getElementById('userName').innerText = name;
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        const fullName = userDoc.data().fullName || "User";
+                        
+                        // CRITICAL: .textContent သုံးပြီး XSS ကို ကာကွယ်ခြင်း
+                        userNameSpan.textContent = fullName;
+                        userDisplayDiv.textContent = "CONNECTED: " + fullName.toUpperCase();
+                    }
+                } catch (error) {
+                    console.error("Error fetching user data:", error);
                 }
             } else {
-                window.location.href = "login.html"; // Login မဝင်ထားရင် ပြန်ကန်ထုတ်မယ်
+                // Login မဝင်ထားရင် Login Page ကို ပြန်ကန်ထုတ်မယ်
+                window.location.href = "login.html";
             }
         });
 
-        document.getElementById('btnLogout').onclick = () => {
-            signOut(auth).then(() => { window.location.href = "login.html"; });
+        // Logout Functionality
+        document.getElementById('btnLogout').onclick = async () => {
+            if(confirm("Are you sure you want to terminate the session?")) {
+                await signOut(auth);
+                window.location.href = "login.html";
+            }
         };
 
-        // Matrix Bg Code အတူတူပါပဲ (အပေါ်က Page ကနေ ကူးထည့်နိုင်ပါတယ်)
+        // Matrix Rain Effect
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%";
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function draw() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0";
+            ctx.font = fontSize + "px monospace";
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(draw, 35);
     </script>
 </body>
 </html>
