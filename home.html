@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matrix - News Feed</title>
+    <title>News Feed</title>
     <style>
         body { background-color: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
         #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.3; }
@@ -43,17 +43,17 @@
         <div id="userDisplay" style="font-weight: bold;">[ CONNECTING... ]</div>
         <div class="nav-links">
             <a href="profile.html" class="btn-nav">PROFILE</a>
-            <button class="btn-nav" id="btnLogout" style="border-color: #f44; color: #f44;">TERMINAL EXIT</button>
+
         </div>
     </div>
 
     <div class="main-container">
         <div class="post-box">
             <textarea id="postText" rows="3" placeholder="Initializing thought sequence..."></textarea>
-            <label for="fileInput" class="file-label">>> ATTACH MEDIA (IMG/VIDEO)</label>
+            <label for="fileInput" class="file-label">>> ATTACH MEDIA (photo/VIDEO)</label>
             <input type="file" id="fileInput" accept="image/*,video/*">
             <div id="fileNameDisplay" style="font-size: 10px; color: #0a0; margin-bottom: 10px;"></div>
-            <button class="btn-nav" id="btnPost" style="width: 100%;">EXECUTE POST</button>
+            <button class="btn-nav" id="btnPost" style="width: 100%;">POST</button>
         </div>
 
         <div id="newsFeed"></div>
@@ -214,14 +214,6 @@
 
         window.deletePost = async (id) => {
             if(confirm("Permanently erase data?")) await deleteDoc(doc(db, "posts", id));
-        };
-
-        // Logout
-        document.getElementById('btnLogout').onclick = async () => {
-            if(confirm("Terminate session?")) {
-                await signOut(auth);
-                window.location.href = "login.html";
-            }
         };
 
         // Background
