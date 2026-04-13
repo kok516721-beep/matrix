@@ -28,6 +28,9 @@
 <body>
     <div class="profile-container">
         <h2>>> IDENTITY <<</h2>
+        
+        <button class="btn" style="border-color: #ff4444; color: #ff4444; margin-top: 20px;" id="btnLogout">LOGOUT</button>
+            
 
         <div class="photo-display" id="mediaContainer">
             <img id="viewPhoto" src="https://cdn-icons-png.flaticon.com/512/711/711769.png">
@@ -156,6 +159,15 @@
             await sendPasswordResetEmail(auth, auth.currentUser.email);
             document.getElementById('status').textContent = "Reset link sent to Gmail!";
         };
+        document.getElementById('btnLogout').onclick = async () => {
+    try {
+        await auth.signOut();
+        window.location.href = "login.html";
+    } catch (e) {
+        alert("Logout failed!");
+    }
+};
+            
     </script>
 </body>
         </html>
