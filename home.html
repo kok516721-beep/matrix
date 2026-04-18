@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix - Ultimate News Feed</title>
+    <style>
+        :root { --matrix-green: #0f0; --matrix-dark: #000; --matrix-glow: rgba(0, 255, 0, 0.3); }
+        body { background-color: var(--matrix-dark); color: var(--matrix-green); font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.6; }
+
+        .navbar { border-bottom: 2px solid var(--matrix-green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); position: sticky; top: 0; z-index: 100; }
+        .btn-nav { border: 1px solid var(--matrix-green); color: var(--matrix-green); background: transparent; padding: 6px 12px; cursor: pointer; text-decoration: none; font-size: 13px; font-weight: bold; }
+        .btn-nav:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
+
+        .main-container { max-width: 600px; margin: 20px auto; padding: 10px; position: relative; z-index: 1; }
+        .post-box, .post-card { border: 1px solid var(--matrix-green); background: rgba(0, 15, 0, 0.85); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 10px var(--matrix-glow); }
+        
+        textarea { width: 100%; background: #000; border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px; box-sizing: border-box; resize: none; outline: none; }
+        
+        .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #030; padding-bottom: 8px; }
+        .post-user-img { width: 40px; height: 40px; border: 1px solid var(--matrix-green); border-radius: 50%; object-fit: cover; }
+        .post-info { flex-grow: 1; }
+        .post-user-name { font-weight: bold; font-size: 14px; color: #fff; }
+        
+        .post-actions { display: flex; gap: 15px; border-top: 1px solid #030; padding-top: 10px; margin-top: 10px; font-size: 13px; }
+        .action-btn { cursor: pointer; display: flex; align-items: center; gap: 5px; user-select: none; }
+        .liked { color: #f00; text-shadow: 0 0 8px #f00; }
+        .shared { color: #0af; text-shadow: 0 0 8px #0af; }
+
+        .comment-section { margin-top: 10px; background: rgba(0, 10, 0, 0.9); padding: 10px; border: 1px solid #030; display: none; }
+        .comment-item { margin-bottom: 12px; border-left: 2px solid var(--matrix-green); padding-left: 10px; }
+        .comment-img { max-width: 150px; border: 1px solid #030; margin-top: 5px; border-radius: 4px; display: block; }
+        
+        .menu-dropdown { position: absolute; right: 0; background: #000; border: 1px solid var(--matrix-green); z-index: 10; display: none; }
+        .menu-dropdown button { display: block; width: 100%; padding: 8px 15px; background: none; border: none; color: var(--matrix-green); cursor: pointer; text-align: left; }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div class="navbar">
+        <div id="userDisplay">[ CONNECTING... ]</div>
+        <a href="profile.html" class="btn-nav">PROFILE</a>
+    </div>
+
+    <div class="main-container">
+        <div class="post-box">
+            <h3 id="boxHeader" style="font-size: 12px; margin-top: 0;">>> NEW_SEQUENCE</h3>
+            <textarea id="postText" rows="3" placeholder="Input sequence data..."></textarea>
+            <div style="margin-top: 10px;">
+                <label for="fileInput" class="btn-nav">ATTACH_MEDIA</label>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+                <span id="fileName" style="font-size: 10px; margin-left: 10px;"></span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-nav" id="btnExecute" style="flex-grow: 1;">EXECUTE</button>
+                <button class="btn-nav" id="btnCancelEdit" style="display: none; background: #300;">ABORT</button>
+            </div>
+        </div>
+
+        <div id="newsFeed"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUid = "", currentUserName = "User", currentUserPhoto = "";
+        let editMode = false, editingPostId = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUid = user.uid;
+                const userDoc = await getDoc(doc(db, "users", currentUid));
+                if (userDoc.exists()) {
+                    currentUserName = userDoc.data().fullName || "User";
+                    currentUserPhoto = userDoc.data().photoURL || "https://cdn-icons-png.flaticon.com/512/711/711769.png";
+                }
+                document.getElementById('userDisplay').textContent = `SYSTEM_USER: ${currentUserName.toUpperCase()}`;
+                loadPosts();
+            } else { window.location.href = "login.html"; }
+        });
+
+        // --- Helper: Upload Media to Cloudinary ---
+        async function uploadMedia(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", "my-upload");
+            const res = await fetch(`https://api.cloudinary.com/v1_1/dbrgjktoz/auto/upload`, { method: "POST", body: formData });
+            const data = await res.json();
+            return data.secure_url;
+        }
+
+        document.getElementById('fileInput').onchange = (e) => {
+            document.getElementById('fileName').textContent = e.target.files[0]?.name || "";
+        };
+
+        // --- Execute Post (Create/Update) ---
+        document.getElementById('btnExecute').onclick = async () => {
+            const text = document.getElementById('postText').value.trim();
+            const file = document.getElementById('fileInput').files[0];
+            if (!text && !file && !editMode) return;
+
+            const btn = document.getElementById('btnExecute');
+            btn.disabled = true; btn.textContent = "PROCESSING...";
+
+            let mediaUrl = "";
+            if (file) mediaUrl = await uploadMedia(file);
+
+            try {
+                if (editMode) {
+                    const upData = { content: text };
+                    if (mediaUrl) upData.media = mediaUrl;
+                    await updateDoc(doc(db, "posts", editingPostId), upData);
+                    window.resetEditor();
+                } else {
+                    await addDoc(collection(db, "posts"), {
+                        userId: currentUid, userName: currentUserName, userPhoto: currentUserPhoto,
+                        content: text, media: mediaUrl, createdAt: serverTimestamp(),
+                        likes: [], shares: [], comments: []
+                    });
+                }
+                document.getElementById('postText').value = "";
+                document.getElementById('fileInput').value = "";
+                document.getElementById('fileName').textContent = "";
+            } catch(e) { console.error(e); alert("Failed to execute sequence."); }
+            btn.disabled = false; btn.textContent = "EXECUTE";
+        };
+
+        // --- Load & Render News Feed ---
+        function loadPosts() {
+            const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                const feed = document.getElementById('newsFeed');
+                feed.innerHTML = "";
+                snapshot.forEach((postDoc) => {
+                    const post = postDoc.data();
+                    const pid = postDoc.id;
+                    const isLiked = post.likes?.includes(currentUid);
+                    const isShared = post.shares?.includes(currentUid);
+
+                    const card = document.createElement('div');
+                    card.className = "post-card";
+                    card.innerHTML = `
+                        <div class="post-header" style="position:relative;">
+                            <img src="${post.userPhoto}" class="post-user-img">
+                            <div class="post-info">
+                                <span class="post-user-name">${post.userName}</span>
+                                <span style="font-size:10px; color:#0a0; display:block;">${post.createdAt ? new Date(post.createdAt.seconds*1000).toLocaleString() : '...'}</span>
+                            </div>
+                            <div>
+                                <span class="action-btn" onclick="window.toggleMenu('${pid}')">⋮</span>
+                                <div id="menu-${pid}" class="menu-dropdown">
+                                    ${post.userId === currentUid ? `<button onclick="window.startEdit('${pid}', \`${post.content}\`)">EDIT</button><button onclick="window.deletePost('${pid}')">DELETE</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin:10px 0; white-space: pre-wrap;">${post.content}</div>
+                        ${post.media ? `<div class="post-media"><img src="${post.media}" style="width:100%; border:1px solid #030;"></div>` : ''}
+                        
+                        <div class="post-actions">
+                            <div class="action-btn ${isLiked?'liked':''}" onclick="window.handleLike('${pid}', ${isLiked})">❤️ ${post.likes?.length || 0}</div>
+                            <div class="action-btn" onclick="window.toggleComments('${pid}')">💬 ${post.comments?.length || 0}</div>
+                            <div class="action-btn ${isShared?'shared':''}" onclick="window.handleShare('${pid}', ${isShared})">🔄 ${post.shares?.length || 0}</div>
+                        </div>
+
+                        <div class="comment-section" id="sec-${pid}">
+                            <div id="list-${pid}"></div>
+                            <div style="display:flex; gap:5px; margin-top:10px; align-items:center;">
+                                <input type="text" id="inp-${pid}" placeholder="System comment..." style="flex-grow:1; background:#000; color:#0f0; border:1px solid #0f0; padding:8px;">
+                                <label style="cursor:pointer; font-size:18px;">📷<input type="file" id="cimg-${pid}" style="display:none;"></label>
+                                <button class="btn-nav" onclick="window.addComment('${pid}')">SEND</button>
+                            </div>
+                        </div>
+                    `;
+                    feed.appendChild(card);
+                    window.renderComments(pid, post.comments);
+                });
+            });
+        }
+
+        // --- Global Window Functions (Crucial for onclick) ---
+        window.renderComments = (pid, comments) => {
+            const list = document.getElementById(`list-${pid}`);
+            if(!list) return;
+            list.innerHTML = (comments || []).map((c, i) => `
+                <div class="comment-item">
+                    <span style="font-weight:bold; color:#fff;">${c.userName}:</span> ${c.text}
+                    ${c.photo ? `<img src="${c.photo}" class="comment-img">` : ''}
+                    ${c.userId === currentUid ? `<div style="font-size:9px; color:red; cursor:pointer; margin-top:3px;" onclick="window.deleteComment('${pid}', ${i})">[TERMINATE_COMMENT]</div>` : ''}
+                </div>
+            `).join('');
+        };
+
+        window.handleLike = async (id, liked) => {
+            await updateDoc(doc(db, "posts", id), { likes: liked ? arrayRemove(currentUid) : arrayUnion(currentUid) });
+        };
+
+        window.handleShare = async (id, shared) => {
+            await updateDoc(doc(db, "posts", id), { shares: shared ? arrayRemove(currentUid) : arrayUnion(currentUid) });
+        };
+
+        window.addComment = async (pid) => {
+            const text = document.getElementById(`inp-${pid}`).value.trim();
+            const file = document.getElementById(`cimg-${pid}`).files[0];
+            if(!text && !file) return;
+
+            const btn = document.querySelector(`button[onclick="window.addComment('${pid}')"]`);
+            btn.disabled = true;
+
+            let photoUrl = "";
+            if(file) photoUrl = await uploadMedia(file);
+
+            await updateDoc(doc(db, "posts", pid), {
+                comments: arrayUnion({ userId: currentUid, userName: currentUserName, text, photo: photoUrl, time: Date.now() })
+            });
+            document.getElementById(`inp-${pid}`).value = "";
+            document.getElementById(`cimg-${pid}`).value = "";
+            btn.disabled = false;
+        };
+
+        window.deleteComment = async (pid, index) => {
+            if(!confirm("Erase comment?")) return;
+            const postRef = doc(db, "posts", pid);
+            const postSnap = await getDoc(postRef);
+            const comms = postSnap.data().comments;
+            comms.splice(index, 1);
+            await updateDoc(postRef, { comments: comms });
+        };
+
+        window.startEdit = (id, text) => {
+            editMode = true; editingPostId = id;
+            document.getElementById('postText').value = text;
+            document.getElementById('boxHeader').textContent = ">> EDIT_SEQUENCE";
+            document.getElementById('btnExecute').textContent = "UPDATE";
+            document.getElementById('btnCancelEdit').style.display = "block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.deletePost = async (id) => { if(confirm("Terminate sequence?")) await deleteDoc(doc(db, "posts", id)); };
+        
+        window.toggleMenu = (id) => { 
+            const m = document.getElementById(`menu-${id}`); 
+            const all = document.querySelectorAll('.menu-dropdown');
+            all.forEach(el => { if(el.id !== `menu-${id}`) el.style.display = 'none'; });
+            m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
+        };
+
+        window.toggleComments = (id) => { 
+            const s = document.getElementById(`sec-${id}`); 
+            s.style.display = (s.style.display === 'none' || s.style.display === '') ? 'block' : 'none'; 
+        };
+
+        window.resetEditor = () => { 
+            editMode = false; editingPostId = null; 
+            document.getElementById('boxHeader').textContent = ">> NEW_SEQUENCE"; 
+            document.getElementById('btnCancelEdit').style.display = "none"; 
+            document.getElementById('btnExecute').textContent = "EXECUTE";
+            document.getElementById('postText').value = ""; 
+        };
+        
+        document.getElementById('btnCancelEdit').onclick = window.resetEditor;
+
+        // --- Matrix Background ---
+        const canvas = document.getElementById('bg'); const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const drops = Array(Math.floor(canvas.width/16)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = "15px monospace";
+            drops.forEach((y, i) => {
+                ctx.fillText(String.fromCharCode(33+Math.random()*94), i*16, y*16);
+                if(y*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(draw, 35);
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    </script>
+</body>
+</html>
