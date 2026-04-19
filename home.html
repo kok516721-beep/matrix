@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix - Ultimate News Feed</title>
+    <style>
+        :root { --matrix-green: #0f0; --matrix-dark: #000; --matrix-glow: rgba(0, 255, 0, 0.3); }
+        body { background-color: var(--matrix-dark); color: var(--matrix-green); font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.6; }
+
+        /* Navbar */
+        .navbar { border-bottom: 2px solid var(--matrix-green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); position: sticky; top: 0; z-index: 100; }
+        .nav-links { display: flex; gap: 10px; align-items: center; }
+        .btn-nav { border: 1px solid var(--matrix-green); color: var(--matrix-green); background: transparent; padding: 6px 12px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: 0.3s; position: relative; }
+        .btn-nav:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
+        .noti-badge { position: absolute; top: -5px; right: -5px; background: #f00; color: #fff; border-radius: 50%; padding: 2px 5px; font-size: 8px; display: none; }
+
+        /* Main Container */
+        .main-container { max-width: 600px; margin: 20px auto; padding: 10px; position: relative; z-index: 1; }
+        .post-box, .post-card, .user-card { border: 1px solid var(--matrix-green); background: rgba(0, 15, 0, 0.85); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 10px var(--matrix-glow); }
+        
+        /* Section Toggle Headers */
+        .section-title { font-size: 14px; border-left: 4px solid #0f0; padding-left: 10px; margin: 20px 0; color: #fff; cursor: pointer; display: flex; justify-content: space-between; }
+
+        /* Forms & Inputs */
+        textarea, .comment-input { width: 100%; background: #000; border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px; box-sizing: border-box; resize: none; outline: none; }
+        
+        /* Post Header & Info */
+        .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #030; padding-bottom: 8px; }
+        .post-user-img { width: 40px; height: 40px; border: 1px solid var(--matrix-green); border-radius: 50%; object-fit: cover; }
+        .post-info { flex-grow: 1; }
+        .post-user-name { font-weight: bold; font-size: 14px; color: #fff; }
+        .timestamp { font-size: 10px; color: #0a0; display: block; }
+
+        /* Notification Panel */
+        #notiPanel, #userListSection { display: none; margin-bottom: 20px; }
+        .req-card { border-bottom: 1px solid #030; padding: 10px 0; display: flex; align-items: center; justify-content: space-between; }
+
+        /* Modal & UI Elements */
+        #matrixModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { border: 2px solid var(--matrix-green); background: #000; padding: 30px; text-align: center; box-shadow: 0 0 40px var(--matrix-green); max-width: 320px; width: 90%; }
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0, 20, 0, 0.9); border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px 20px; z-index: 2000; display: none; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div id="toast">SYSTEM_READY</div>
+
+    <div id="matrixModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">[ SECURE_ACCESS ]</div>
+            <div class="modal-msg" id="modalMsg">CONFIRM ACTION?</div>
+            <div class="modal-btns" style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+                <button class="btn-nav" id="confirmOk">YES</button>
+                <button class="btn-nav" id="confirmNo" style="border-color:#f00; color:#f00;">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="navbar">
+        <div id="userDisplay">[ CONNECTING... ]</div>
+        <div class="nav-links">
+            <div class="btn-nav" onclick="toggleSection('notiPanel')">🔔 NOTI <span id="notiCount" class="noti-badge">0</span></div>
+            <div class="btn-nav" onclick="toggleSection('userListSection')">🔍 FIND</div>
+            <a href="profile.html" class="btn-nav">PROFILE</a>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div id="notiPanel">
+            <div class="section-title">>> FRIEND_REQUESTS</div>
+            <div id="reqList">No pending requests</div>
+        </div>
+
+        <div id="userListSection">
+            <div class="section-title">>> DISCOVER_USERS</div>
+            <div id="allUsersList">Loading users...</div>
+        </div>
+
+        <div class="post-box">
+            <h3 id="boxHeader" style="font-size: 12px; margin-top: 0; color: var(--matrix-green);">>> SYSTEM_INPUT</h3>
+            <textarea id="postText" rows="3" placeholder="What's on your mind, hacker?"></textarea>
+            <div style="margin-top: 10px;">
+                <label for="fileInput" class="btn-nav">ATTACH_MEDIA</label>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+                <span id="fileName" style="font-size: 10px; margin-left: 10px;"></span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-nav" id="btnExecute" style="flex-grow: 1;">POST</button>
+                <button class="btn-nav" id="btnCancelEdit" style="display: none; border-color: #f00; color: #f00;">CANCEL</button>
+            </div>
+        </div>
+
+        <div id="newsFeed"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUid = "", userData = {};
+        let editMode = false, editingPostId = null;
+
+        // --- Core Helpers ---
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = `[ ${msg} ]`;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        window.toggleSection = (id) => {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+            if(id === 'userListSection' && el.style.display === 'block') loadAllUsers();
+        };
+
+        // --- Auth & User State ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUid = user.uid;
+                // Listen to personal data for Noti and Friend updates
+                onSnapshot(doc(db, "users", currentUid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        userData = docSnap.data();
+                        document.getElementById('userDisplay').textContent = `USER: ${userData.fullName.toUpperCase()}`;
+                        updateNotiUI(userData.friendRequests || []);
+                    }
+                });
+                loadPosts();
+            } else { window.location.href = "login.html"; }
+        });
+
+        // --- Friend System Logic ---
+        async function loadAllUsers() {
+            const snap = await getDocs(collection(db, "users"));
+            const list = document.getElementById('allUsersList');
+            list.innerHTML = "";
+            snap.forEach(uDoc => {
+                if(uDoc.id === currentUid) return;
+                const u = uDoc.data();
+                const isFriend = userData.friends?.includes(uDoc.id);
+                const isSent = userData.sentRequests?.includes(uDoc.id);
+                
+                list.innerHTML += `
+                    <div class="req-card">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${u.photoURL}" style="width:30px; height:30px; border-radius:50%; border:1px solid #0f0;">
+                            <span>${u.fullName}</span>
+                        </div>
+                        ${isFriend ? '<span style="color:#0a0; font-size:10px;">FRIENDS</span>' : 
+                          isSent ? '<button class="btn-nav" disabled>SENT</button>' : 
+                          `<button class="btn-nav" onclick="window.sendRequest('${uDoc.id}')">ADD</button>`}
+                    </div>`;
+            });
+        }
+
+        window.sendRequest = async (targetId) => {
+            const batch = writeBatch(db);
+            batch.update(doc(db, "users", currentUid), { sentRequests: arrayUnion(targetId) });
+            batch.update(doc(db, "users", targetId), { friendRequests: arrayUnion(currentUid) });
+            await batch.commit();
+            showToast("REQUEST_SENT");
+            loadAllUsers();
+        };
+
+        function updateNotiUI(requests) {
+            const count = document.getElementById('notiCount');
+            const list = document.getElementById('reqList');
+            count.textContent = requests.length;
+            count.style.display = requests.length > 0 ? 'block' : 'none';
+            
+            if(requests.length === 0) { list.innerHTML = "No pending requests"; return; }
+            
+            list.innerHTML = "";
+            requests.forEach(async (rid) => {
+                const u = await getDoc(doc(db, "users", rid));
+                const name = u.data()?.fullName || "Hacker";
+                const div = document.createElement('div');
+                div.className = "req-card";
+                div.innerHTML = `
+                    <span>${name} sent you a request</span>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-nav" onclick="window.handleRequest('${rid}', 'accept')">ACCEPT</button>
+                        <button class="btn-nav" style="border-color:#f00; color:#f00;" onclick="window.handleRequest('${rid}', 'reject')">X</button>
+                    </div>`;
+                list.appendChild(div);
+            });
+        }
+
+        window.handleRequest = async (senderId, action) => {
+            const batch = writeBatch(db);
+            if(action === 'accept') {
+                batch.update(doc(db, "users", currentUid), { 
+                    friends: arrayUnion(senderId), 
+                    friendRequests: arrayRemove(senderId) 
+                });
+                batch.update(doc(db, "users", senderId), { 
+                    friends: arrayUnion(currentUid), 
+                    sentRequests: arrayRemove(currentUid) 
+                });
+                showToast("FRIEND_ACCEPTED");
+            } else {
+                batch.update(doc(db, "users", currentUid), { friendRequests: arrayRemove(senderId) });
+                batch.update(doc(db, "users", senderId), { sentRequests: arrayRemove(currentUid) });
+                showToast("REQUEST_REJECTED");
+            }
+            await batch.commit();
+        };
+
+        // --- Existing Post & Feed Logic ---
+        function formatDateTime(ts) {
+            if(!ts) return "Just now";
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+
+        document.getElementById('btnExecute').onclick = async () => {
+            const text = document.getElementById('postText').value.trim();
+            if (!text && !editMode) return;
+            const btn = document.getElementById('btnExecute');
+            btn.disabled = true; btn.textContent = "SYNCING...";
+            
+            try {
+                if (editMode) {
+                    await updateDoc(doc(db, "posts", editingPostId), { content: text });
+                    showToast("UPDATE_SUCCESSFUL");
+                    window.resetEditor();
+                } else {
+                    await addDoc(collection(db, "posts"), {
+                        userId: currentUid, userName: userData.fullName, userPhoto: userData.photoURL,
+                        content: text, createdAt: serverTimestamp(), likes: [], comments: []
+                    });
+                    showToast("POST_SUCCESSFUL");
+                    document.getElementById('postText').value = "";
+                }
+            } catch(e) { showToast("ERROR_SYNC_FAILED"); }
+            btn.disabled = false; btn.textContent = editMode ? "UPDATE" : "POST";
+        };
+
+        function loadPosts() {
+            onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snapshot) => {
+                const feed = document.getElementById('newsFeed');
+                feed.innerHTML = "";
+                snapshot.forEach((postDoc) => {
+                    const post = postDoc.data();
+                    const pid = postDoc.id;
+                    const card = document.createElement('div');
+                    card.className = "post-card";
+                    card.innerHTML = `
+                        <div class="post-header" style="position:relative;">
+                            <img src="${post.userPhoto}" class="post-user-img">
+                            <div class="post-info">
+                                <span class="post-user-name">${post.userName}</span>
+                                <span class="timestamp">${formatDateTime(post.createdAt)}</span>
+                            </div>
+                            <div class="dot-btn" onclick="window.toggleMenu('m-${pid}')">⋮</div>
+                            <div id="m-${pid}" class="menu-dropdown">
+                                ${post.userId === currentUid ? `<button onclick="window.startEdit('${pid}', \`${post.content}\`)">EDIT</button><button onclick="window.deletePost('${pid}')">DELETE</button>` : `<button>REPORT</button>`}
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px; white-space:pre-wrap;">${post.content}</div>
+                        <div class="post-actions">
+                            <div class="action-btn" onclick="window.handleLike('${pid}')">❤️ ${post.likes?.length || 0}</div>
+                            <div class="action-btn" onclick="window.toggleComments('${pid}')">💬 ${post.comments?.length || 0}</div>
+                        </div>
+                        <div class="comment-section" id="sec-${pid}">
+                            <div class="comment-input-area">
+                                <input type="text" id="inp-${pid}" class="comment-input" placeholder="Enter comment...">
+                                <button class="btn-nav" onclick="window.addComment('${pid}')">SEND</button>
+                            </div>
+                        </div>`;
+                    feed.appendChild(card);
+                });
+            });
+        }
+
+        // --- Menu & Editor Toggles ---
+        window.toggleMenu = (id) => {
+            document.querySelectorAll('.menu-dropdown').forEach(m => { if(m.id !== id) m.style.display = 'none'; });
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        };
+
+        window.toggleComments = (id) => {
+            const el = document.getElementById(`sec-${id}`);
+            el.style.display = el.style.display === 'none' || !el.style.display ? 'block' : 'none';
+        };
+
+        window.startEdit = (id, text) => {
+            editMode = true; editingPostId = id;
+            document.getElementById('postText').value = text;
+            document.getElementById('boxHeader').textContent = ">> EDIT_MODE";
+            document.getElementById('btnExecute').textContent = "UPDATE";
+            document.getElementById('btnCancelEdit').style.display = "block";
+            window.scrollTo(0,0);
+        };
+
+        window.resetEditor = () => {
+            editMode = false; editingPostId = null;
+            document.getElementById('postText').value = "";
+            document.getElementById('boxHeader').textContent = ">> SYSTEM_INPUT";
+            document.getElementById('btnCancelEdit').style.display = "none";
+            document.getElementById('btnExecute').textContent = "POST";
+        };
+        document.getElementById('btnCancelEdit').onclick = window.resetEditor;
+
+        // --- Matrix BG Animation ---
+        const canvas = document.getElementById('bg'); const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const drops = Array(Math.floor(canvas.width/16)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = "15px monospace";
+            drops.forEach((y, i) => {
+                ctx.fillText(String.fromCharCode(33+Math.random()*94), i*16, y*16);
+                if(y*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(draw, 35);
+    </script>
+</body>
+</html>
