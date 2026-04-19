@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix - Ultimate News Feed</title>
+    <style>
+        :root { --matrix-green: #0f0; --matrix-dark: #000; --matrix-glow: rgba(0, 255, 0, 0.3); }
+        body { background-color: var(--matrix-dark); color: var(--matrix-green); font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.6; }
+
+        /* Navbar Customization */
+        .navbar { border-bottom: 2px solid var(--matrix-green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); position: sticky; top: 0; z-index: 100; }
+        .nav-links { display: flex; gap: 10px; align-items: center; }
+        .btn-nav { border: 1px solid var(--matrix-green); color: var(--matrix-green); background: transparent; padding: 6px 12px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: 0.3s; position: relative; }
+        .btn-nav:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
+        .noti-badge { position: absolute; top: -5px; right: -5px; background: #f00; color: #fff; border-radius: 50%; padding: 2px 5px; font-size: 8px; display: none; }
+
+        /* Panels for New Features */
+        #notiPanel, #userDiscovery { display: none; border: 1px solid var(--matrix-green); background: rgba(0, 20, 0, 0.95); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 15px var(--matrix-glow); }
+        .list-item { border-bottom: 1px solid #030; padding: 10px 0; display: flex; align-items: center; justify-content: space-between; }
+        .section-title { font-size: 12px; color: #fff; margin-bottom: 10px; border-left: 3px solid #0f0; padding-left: 8px; text-transform: uppercase; }
+
+        /* Main Feed UI */
+        .main-container { max-width: 600px; margin: 20px auto; padding: 10px; position: relative; z-index: 1; }
+        .post-box, .post-card { border: 1px solid var(--matrix-green); background: rgba(0, 15, 0, 0.85); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 10px var(--matrix-glow); }
+        
+        textarea, .comment-input { width: 100%; background: #000; border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px; box-sizing: border-box; resize: none; outline: none; }
+        
+        .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #030; padding-bottom: 8px; }
+        .post-user-img { width: 40px; height: 40px; border: 1px solid var(--matrix-green); border-radius: 50%; object-fit: cover; }
+        .post-info { flex-grow: 1; }
+        .post-user-name { font-weight: bold; font-size: 14px; color: #fff; }
+        .timestamp { font-size: 10px; color: #0a0; display: block; }
+
+        .post-actions { display: flex; gap: 15px; border-top: 1px solid #030; padding-top: 10px; margin-top: 10px; font-size: 13px; }
+        .action-btn { cursor: pointer; display: flex; align-items: center; gap: 5px; user-select: none; }
+        .liked { color: #f00; text-shadow: 0 0 8px #f00; }
+
+        /* Comments UI */
+        .comment-section { margin-top: 10px; background: rgba(0, 5, 0, 0.95); padding: 10px; border: 1px solid #030; display: none; }
+        .comment-item { margin-bottom: 15px; padding: 10px; background: rgba(0, 20, 0, 0.5); border: 1px solid #020; position: relative; }
+        .comment-img { max-width: 100%; border: 1px solid #030; margin-top: 8px; border-radius: 4px; display: block; }
+        .comment-input-area { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+        .selected-media-info { font-size: 9px; color: #0f0; margin-bottom: 5px; display: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Modals & Dropdowns */
+        .dot-btn { cursor: pointer; padding: 5px; font-weight: bold; font-size: 18px; }
+        .menu-dropdown { position: absolute; right: 0; top: 30px; background: #000; border: 1px solid var(--matrix-green); z-index: 50; display: none; min-width: 120px; box-shadow: 0 0 10px #0f0; }
+        .menu-dropdown button { display: block; width: 100%; padding: 10px; background: none; border: none; color: var(--matrix-green); cursor: pointer; text-align: left; font-size: 11px; }
+        .menu-dropdown button:hover { background: #0f0; color: #000; }
+
+        #matrixModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal-content { border: 2px solid var(--matrix-green); background: #000; padding: 30px; text-align: center; box-shadow: 0 0 40px var(--matrix-green); max-width: 320px; width: 90%; }
+        
+        video, img.post-media { background: #000; max-height: 450px; width: 100%; object-fit: contain; }
+        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(0, 20, 0, 0.9); border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px 20px; z-index: 2000; box-shadow: 0 0 20px var(--matrix-green); display: none; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div id="toast">SYSTEM_READY</div>
+
+    <div id="matrixModal">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">[ SECURE_ACCESS ]</div>
+            <div class="modal-msg" id="modalMsg">CONFIRM ACTION?</div>
+            <div class="modal-btns" style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button class="btn-nav" id="confirmOk">YES</button>
+                <button class="btn-nav" id="confirmNo" style="border-color:#f00; color:#f00;">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="navbar">
+        <div id="userDisplay">[ CONNECTING... ]</div>
+        <div class="nav-links">
+            <div class="btn-nav" onclick="window.toggleSection('notiPanel')">🔔 NOTI <span id="notiCount" class="noti-badge">0</span></div>
+            <div class="btn-nav" onclick="window.toggleSection('userDiscovery')">🔍 FIND</div>
+            <a href="profile.html" class="btn-nav">PROFILE</a>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div id="notiPanel">
+            <div class="section-title">>> ACCESS_REQUESTS</div>
+            <div id="reqList">No pending requests</div>
+        </div>
+
+        <div id="userDiscovery">
+            <div class="section-title">>> NETWORK_USERS</div>
+            <div id="allUsersList">Scanning...</div>
+        </div>
+
+        <div class="post-box">
+            <h3 id="boxHeader" style="font-size: 12px; margin-top: 0; color: var(--matrix-green);">>> SYSTEM_INPUT</h3>
+            <textarea id="postText" rows="3" placeholder="Enter post data..."></textarea>
+            <div style="margin-top: 10px;">
+                <label for="fileInput" class="btn-nav">ATTACH_MEDIA</label>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+                <span id="fileName" style="font-size: 10px; margin-left: 10px;"></span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-nav" id="btnExecute" style="flex-grow: 1;">POST</button>
+                <button class="btn-nav" id="btnCancelEdit" style="display: none; border-color: #f00; color: #f00;">CANCEL</button>
+            </div>
+        </div>
+        <div id="newsFeed"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUid = "", userData = {};
+        let editMode = false, editingPostId = null;
+        let commentEditState = { pid: null, index: null, active: false };
+
+        // --- Core Helpers ---
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = `[ ${msg} ]`;
+            t.style.display = 'block';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        function formatDateTime(ts) {
+            if(!ts) return "Just now";
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+
+        function triggerMatrixConfirm(header, msg, onConfirm) {
+            const modal = document.getElementById('matrixModal');
+            document.getElementById('modalHeader').textContent = `[ ${header} ]`;
+            document.getElementById('modalMsg').textContent = msg;
+            modal.style.display = 'flex';
+            document.getElementById('confirmOk').onclick = () => { onConfirm(); modal.style.display = 'none'; };
+            document.getElementById('confirmNo').onclick = () => { modal.style.display = 'none'; };
+        }
+
+        window.toggleSection = (id) => {
+            const el = document.getElementById(id);
+            const isClosing = el.style.display === 'block';
+            document.getElementById('notiPanel').style.display = 'none';
+            document.getElementById('userDiscovery').style.display = 'none';
+            el.style.display = isClosing ? 'none' : 'block';
+            if(id === 'userDiscovery' && !isClosing) loadAllUsers();
+        };
+
+        // --- Cloudinary Integration ---
+        async function uploadMedia(file) {
+            const type = file.type.startsWith('video') ? 'video' : 'image';
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", "my-upload");
+            try {
+                const res = await fetch(`https://api.cloudinary.com/v1_1/dbrgjktoz/${type}/upload`, { method: "POST", body: formData });
+                const data = await res.json();
+                return { url: data.secure_url, type };
+            } catch (e) { return null; }
+        }
+
+        // --- Auth & User State ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUid = user.uid;
+                onSnapshot(doc(db, "users", currentUid), (snap) => {
+                    if (snap.exists()) {
+                        userData = snap.data();
+                        document.getElementById('userDisplay').textContent = `USER: ${userData.fullName.toUpperCase()}`;
+                        updateNotiUI(userData.friendRequests || []);
+                    }
+                });
+                loadPosts();
+            } else { window.location.href = "login.html"; }
+        });
+
+        // --- Friend & Noti System ---
+        async function loadAllUsers() {
+            const snap = await getDocs(collection(db, "users"));
+            const list = document.getElementById('allUsersList');
+            list.innerHTML = "";
+            snap.forEach(uDoc => {
+                if(uDoc.id === currentUid) return;
+                const u = uDoc.data();
+                const isFriend = userData.friends?.includes(uDoc.id);
+                const isSent = userData.sentRequests?.includes(uDoc.id);
+                list.innerHTML += `
+                    <div class="list-item">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${u.photoURL}" style="width:30px; height:30px; border-radius:50%; border:1px solid #0f0;">
+                            <span style="font-size:12px;">${u.fullName}</span>
+                        </div>
+                        ${isFriend ? '<span style="color:#0a0; font-size:10px;">FRIENDS</span>' : 
+                          isSent ? '<button class="btn-nav" disabled>SENT</button>' : 
+                          `<button class="btn-nav" onclick="window.sendRequest('${uDoc.id}')">ADD</button>`}
+                    </div>`;
+            });
+        }
+
+        window.sendRequest = async (targetId) => {
+            const batch = writeBatch(db);
+            batch.update(doc(db, "users", currentUid), { sentRequests: arrayUnion(targetId) });
+            batch.update(doc(db, "users", targetId), { friendRequests: arrayUnion(currentUid) });
+            await batch.commit();
+            showToast("REQUEST_SENT");
+        };
+
+        function updateNotiUI(requests) {
+            const count = document.getElementById('notiCount');
+            const list = document.getElementById('reqList');
+            count.textContent = requests.length;
+            count.style.display = requests.length > 0 ? 'block' : 'none';
+            if(requests.length === 0) { list.innerHTML = "No pending requests"; return; }
+            list.innerHTML = "";
+            requests.forEach(async (rid) => {
+                const u = await getDoc(doc(db, "users", rid));
+                const name = u.data()?.fullName || "UNKNOWN";
+                list.innerHTML += `
+                    <div class="list-item">
+                        <span style="font-size:11px;">[ ${name.toUpperCase()} ] ACCESS_REQ</span>
+                        <div style="display:flex; gap:5px;">
+                            <button class="btn-nav" onclick="window.handleRequest('${rid}', 'accept')">YES</button>
+                            <button class="btn-nav" style="border-color:#f00; color:#f00;" onclick="window.handleRequest('${rid}', 'reject')">X</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        window.handleRequest = async (senderId, action) => {
+            const batch = writeBatch(db);
+            if(action === 'accept') {
+                batch.update(doc(db, "users", currentUid), { friends: arrayUnion(senderId), friendRequests: arrayRemove(senderId) });
+                batch.update(doc(db, "users", senderId), { friends: arrayUnion(currentUid), sentRequests: arrayRemove(currentUid) });
+                showToast("SYNC_COMPLETE");
+            } else {
+                batch.update(doc(db, "users", currentUid), { friendRequests: arrayRemove(senderId) });
+                batch.update(doc(db, "users", senderId), { sentRequests: arrayRemove(currentUid) });
+                showToast("REQ_DENIED");
+            }
+            await batch.commit();
+        };
+
+        // --- Post Logic ---
+        document.getElementById('fileInput').onchange = (e) => {
+            document.getElementById('fileName').textContent = e.target.files[0] ? `FILE: ${e.target.files[0].name}` : "";
+        };
+
+        document.getElementById('btnExecute').onclick = async () => {
+            const text = document.getElementById('postText').value.trim();
+            const file = document.getElementById('fileInput').files[0];
+            if (!text && !file && !editMode) return;
+            const btn = document.getElementById('btnExecute');
+            btn.disabled = true; btn.textContent = "SYNCING...";
+            let mediaData = { url: "", type: "" };
+            if (file) { const res = await uploadMedia(file); if (res) mediaData = res; }
+            try {
+                if (editMode) {
+                    const upData = { content: text };
+                    if (mediaData.url) { upData.media = mediaData.url; upData.mediaType = mediaData.type; }
+                    await updateDoc(doc(db, "posts", editingPostId), upData);
+                    showToast("UPDATE_SUCCESSFUL");
+                    window.resetEditor();
+                } else {
+                    await addDoc(collection(db, "posts"), {
+                        userId: currentUid, userName: userData.fullName, userPhoto: userData.photoURL,
+                        content: text, media: mediaData.url, mediaType: mediaData.type,
+                        createdAt: serverTimestamp(), likes: [], comments: []
+                    });
+                    showToast("POST_SUCCESSFUL");
+                }
+                document.getElementById('postText').value = "";
+                document.getElementById('fileInput').value = "";
+                document.getElementById('fileName').textContent = "";
+            } catch(e) { showToast("ERROR_SYNC_FAILED"); }
+            btn.disabled = false; btn.textContent = editMode ? "UPDATE" : "POST";
+        };
+
+        // --- Feed & Rendering ---
+        function loadPosts() {
+            onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snapshot) => {
+                const feed = document.getElementById('newsFeed');
+                feed.innerHTML = "";
+                snapshot.forEach((postDoc) => {
+                    const post = postDoc.data();
+                    const pid = postDoc.id;
+                    const isLiked = post.likes?.includes(currentUid);
+                    let mediaHTML = post.media ? (post.mediaType === 'video' ? `<video src="${post.media}" controls></video>` : `<img src="${post.media}" class="post-media">`) : "";
+                    const card = document.createElement('div');
+                    card.className = "post-card";
+                    card.innerHTML = `
+                        <div class="post-header" style="position:relative;">
+                            <img src="${post.userPhoto}" class="post-user-img">
+                            <div class="post-info">
+                                <span class="post-user-name">${post.userName}</span>
+                                <span class="timestamp">${formatDateTime(post.createdAt)}</span>
+                            </div>
+                            <div class="dot-btn" onclick="window.toggleMenu('m-${pid}')">⋮</div>
+                            <div id="m-${pid}" class="menu-dropdown">
+                                ${post.userId === currentUid ? `<button onclick="window.startEdit('${pid}', \`${post.content}\`)">EDIT</button><button onclick="window.showDeletePostModal('${pid}')">DELETE</button>` : `<button>REPORT</button>`}
+                            </div>
+                        </div>
+                        <div style="margin:10px 0; white-space:pre-wrap;">${post.content}</div>
+                        ${mediaHTML}
+                        <div class="post-actions">
+                            <div class="action-btn ${isLiked?'liked':''}" onclick="window.handleLike('${pid}', ${isLiked})">❤️ ${post.likes?.length || 0}</div>
+                            <div class="action-btn" onclick="window.toggleComments('${pid}')">💬 ${post.comments?.length || 0}</div>
+                        </div>
+                        <div class="comment-section" id="sec-${pid}">
+                            <div id="list-${pid}"></div>
+                            <div id="info-${pid}" class="selected-media-info"></div>
+                            <div class="comment-input-area">
+                                <input type="text" id="inp-${pid}" class="comment-input" placeholder="Type comment...">
+                                <label style="cursor:pointer; font-size:18px;">
+                                    📷<input type="file" id="cimg-${pid}" style="display:none;" onchange="window.handleCommentFileChange('${pid}')">
+                                </label>
+                                <button class="btn-nav" id="cbtn-${pid}" onclick="window.addComment('${pid}')">SEND</button>
+                                <button class="btn-nav" style="color:#f00; border-color:#f00; min-width:35px;" onclick="window.cancelCommentEdit('${pid}')">X</button>
+                            </div>
+                        </div>`;
+                    feed.appendChild(card);
+                    window.renderComments(pid, post.comments);
+                });
+            });
+        }
+
+        window.renderComments = (pid, comments) => {
+            const list = document.getElementById(`list-${pid}`);
+            if(!list) return;
+            list.innerHTML = (comments || []).map((c, i) => {
+                let cMedia = c.photo ? (c.photo.includes('/video/') ? `<video src="${c.photo}" controls class="comment-img"></video>` : `<img src="${c.photo}" class="comment-img">`) : "";
+                return `
+                <div class="comment-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <b style="color:#fff; font-size:11px;">${c.userName}</b>
+                        <div style="position:relative;">
+                            <span class="dot-btn" style="font-size:14px;" onclick="window.toggleMenu('cm-${pid}-${i}')">⋮</span>
+                            <div id="cm-${pid}-${i}" class="menu-dropdown">
+                                ${c.userId === currentUid ? `<button onclick="window.prepareEditComment('${pid}', ${i}, \`${c.text}\`)">EDIT</button><button onclick="window.showDeleteCommentModal('${pid}', ${i})">DELETE</button>` : `<button>REPORT</button>`}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color:#0f0; margin-top:3px;">${c.text}</div>
+                    ${cMedia}
+                </div>`;
+            }).join('');
+        };
+
+        window.addComment = async (pid) => {
+            const input = document.getElementById(`inp-${pid}`);
+            const text = input.value.trim();
+            const file = document.getElementById(`cimg-${pid}`).files[0];
+            if(!text && !file) return;
+            const btn = document.getElementById(`cbtn-${pid}`);
+            btn.disabled = true; btn.textContent = "...";
+            let mediaUrl = "";
+            if(file) { const res = await uploadMedia(file); mediaUrl = res?.url || ""; }
+            
+            const postRef = doc(db, "posts", pid);
+            const postSnap = await getDoc(postRef);
+            let comms = postSnap.data().comments || [];
+
+            if(commentEditState.active && commentEditState.pid === pid) {
+                comms[commentEditState.index].text = text;
+                if(mediaUrl) comms[commentEditState.index].photo = mediaUrl;
+                await updateDoc(postRef, { comments: comms });
+                showToast("COMMENT_UPDATED");
+                window.cancelCommentEdit(pid);
+            } else {
+                await updateDoc(postRef, {
+                    comments: arrayUnion({ userId: currentUid, userName: userData.fullName, text, photo: mediaUrl, time: Date.now() })
+                });
+                showToast("COMMENT_SENT");
+                input.value = "";
+                document.getElementById(`cimg-${pid}`).value = "";
+                document.getElementById(`info-${pid}`).style.display = 'none';
+            }
+            btn.disabled = false; btn.textContent = "SEND";
+        };
+
+        // --- Standard UI Controls ---
+        window.handleCommentFileChange = (pid) => {
+            const file = document.getElementById(`cimg-${pid}`).files[0];
+            const info = document.getElementById(`info-${pid}`);
+            if(file) { info.textContent = `>> ATTACHED: ${file.name}`; info.style.display = 'block'; }
+            else { info.style.display = 'none'; }
+        };
+
+        window.cancelCommentEdit = (pid) => {
+            document.getElementById(`inp-${pid}`).value = "";
+            document.getElementById(`cimg-${pid}`).value = "";
+            document.getElementById(`info-${pid}`).style.display = 'none';
+            document.getElementById(`cbtn-${pid}`).textContent = "SEND";
+            commentEditState = { pid: null, index: null, active: false };
+        };
+
+        window.prepareEditComment = (pid, index, oldText) => {
+            const input = document.getElementById(`inp-${pid}`);
+            input.value = oldText; input.focus();
+            document.getElementById(`cbtn-${pid}`).textContent = "UPDT";
+            commentEditState = { pid, index, active: true };
+            window.toggleMenu(`cm-${pid}-${index}`);
+        };
+
+        window.showDeletePostModal = (pid) => {
+            triggerMatrixConfirm("DELETE POST", "SYSTEM WILL PERMANENTLY WIPE THIS DATA. PROCEED?", async () => {
+                await deleteDoc(doc(db, "posts", pid));
+                showToast("WIPE_COMPLETE");
+            });
+        };
+
+        window.showDeleteCommentModal = (pid, index) => {
+            triggerMatrixConfirm("DELETE COMMENT", "REMOVE THIS DATA STRING?", async () => {
+                const postRef = doc(db, "posts", pid);
+                const postSnap = await getDoc(postRef);
+                let comms = postSnap.data().comments;
+                comms.splice(index, 1);
+                await updateDoc(postRef, { comments: comms });
+                showToast("COMMENT_WIPED");
+            });
+        };
+
+        window.handleLike = async (id, liked) => { await updateDoc(doc(db, "posts", id), { likes: liked ? arrayRemove(currentUid) : arrayUnion(currentUid) }); };
+        
+        window.startEdit = (id, text) => { 
+            editMode = true; editingPostId = id; 
+            document.getElementById('postText').value = text; 
+            document.getElementById('boxHeader').textContent = ">> EDIT_MODE"; 
+            document.getElementById('btnExecute').textContent = "UPDATE"; 
+            document.getElementById('btnCancelEdit').style.display = "block"; 
+            window.scrollTo(0,0);
+        };
+        
+        window.toggleMenu = (id) => { 
+            const m = document.getElementById(id); 
+            document.querySelectorAll('.menu-dropdown').forEach(el => { if(el.id !== id) el.style.display = 'none'; });
+            if(m) m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
+        };
+
+        window.toggleComments = (id) => { 
+            const s = document.getElementById(`sec-${id}`); 
+            s.style.display = (s.style.display === 'none' || s.style.display === '') ? 'block' : 'none'; 
+        };
+
+        window.resetEditor = () => { 
+            editMode = false; editingPostId = null; 
+            document.getElementById('boxHeader').textContent = ">> SYSTEM_INPUT"; 
+            document.getElementById('btnCancelEdit').style.display = "none"; 
+            document.getElementById('btnExecute').textContent = "POST"; 
+            document.getElementById('postText').value = ""; 
+            document.getElementById('fileInput').value = "";
+            document.getElementById('fileName').textContent = "";
+        };
+        document.getElementById('btnCancelEdit').onclick = window.resetEditor;
+
+        // --- Matrix BG Animation ---
+        const canvas = document.getElementById('bg'); const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const drops = Array(Math.floor(canvas.width/16)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = "15px monospace";
+            drops.forEach((y, i) => {
+                ctx.fillText(String.fromCharCode(33+Math.random()*94), i*16, y*16);
+                if(y*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(draw, 35);
+    </script>
+</body>
+</html>
