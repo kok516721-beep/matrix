@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix - Ultimate News Feed</title>
+    <style>
+        :root { --matrix-green: #0f0; --matrix-dark: #000; --matrix-glow: rgba(0, 255, 0, 0.3); }
+        body { background-color: var(--matrix-dark); color: var(--matrix-green); font-family: 'Courier New', monospace; margin: 0; overflow-x: hidden; }
+        #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.6; }
+
+        .navbar { border-bottom: 2px solid var(--matrix-green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); position: sticky; top: 0; z-index: 100; }
+        .btn-nav { border: 1px solid var(--matrix-green); color: var(--matrix-green); background: transparent; padding: 6px 12px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold; }
+        .btn-nav:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
+
+        .main-container { max-width: 600px; margin: 20px auto; padding: 10px; position: relative; z-index: 1; }
+        .post-box, .post-card { border: 1px solid var(--matrix-green); background: rgba(0, 15, 0, 0.85); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 10px var(--matrix-glow); }
+        
+        textarea, .comment-input { width: 100%; background: #000; border: 1px solid var(--matrix-green); color: var(--matrix-green); padding: 10px; box-sizing: border-box; resize: none; outline: none; }
+        .comment-input-active { border-color: #ff0 !important; box-shadow: 0 0 10px #ff0; }
+        
+        .post-header, .comment-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #030; padding-bottom: 8px; }
+        .post-user-img { width: 40px; height: 40px; border: 1px solid var(--matrix-green); border-radius: 50%; object-fit: cover; }
+        .post-info { flex-grow: 1; }
+        .post-user-name { font-weight: bold; font-size: 14px; color: #fff; }
+        
+        .post-actions { display: flex; gap: 15px; border-top: 1px solid #030; padding-top: 10px; margin-top: 10px; font-size: 13px; }
+        .action-btn { cursor: pointer; display: flex; align-items: center; gap: 5px; user-select: none; }
+        .liked { color: #f00; text-shadow: 0 0 8px #f00; }
+        .shared { color: #0af; text-shadow: 0 0 8px #0af; }
+
+        .comment-section { margin-top: 10px; background: rgba(0, 5, 0, 0.95); padding: 10px; border: 1px solid #030; display: none; }
+        .comment-item { margin-bottom: 15px; padding: 10px; background: rgba(0, 20, 0, 0.5); border: 1px solid #020; position: relative; }
+        .comment-img { max-width: 100%; border: 1px solid #030; margin-top: 8px; border-radius: 4px; display: block; }
+        
+        .dot-btn { cursor: pointer; padding: 5px; font-weight: bold; font-size: 18px; }
+        .menu-dropdown { position: absolute; right: 0; top: 30px; background: #000; border: 1px solid var(--matrix-green); z-index: 50; display: none; min-width: 120px; box-shadow: 0 0 10px #0f0; }
+        .menu-dropdown button { display: block; width: 100%; padding: 10px; background: none; border: none; color: var(--matrix-green); cursor: pointer; text-align: left; font-size: 11px; }
+        .menu-dropdown button:hover { background: #0f0; color: #000; }
+
+        video { background: #000; max-height: 400px; width: 100%; }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div class="navbar">
+        <div id="userDisplay">[ CONNECTING... ]</div>
+        <a href="profile.html" class="btn-nav">PROFILE</a>
+    </div>
+
+    <div class="main-container">
+        <div class="post-box">
+            <h3 id="boxHeader" style="font-size: 12px; margin-top: 0;">>> NEW_SEQUENCE</h3>
+            <textarea id="postText" rows="3" placeholder="Input sequence data..."></textarea>
+            <div style="margin-top: 10px;">
+                <label for="fileInput" class="btn-nav">ATTACH_MEDIA</label>
+                <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+                <span id="fileName" style="font-size: 10px; margin-left: 10px;"></span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-nav" id="btnExecute" style="flex-grow: 1;">EXECUTE</button>
+                <button class="btn-nav" id="btnCancelEdit" style="display: none; background: #300;">ABORT</button>
+            </div>
+        </div>
+        <div id="newsFeed"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDTfhbq7LgK7_Jt57-h8Bbh9vxjNokRjg",
+            authDomain: "my-github-page-80ed1.firebaseapp.com",
+            projectId: "my-github-page-80ed1",
+            storageBucket: "my-github-page-80ed1.firebasestorage.app",
+            messagingSenderId: "609164113672",
+            appId: "1:609164113672:web:90bab379209d122b32debd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUid = "", currentUserName = "User", currentUserPhoto = "";
+        let editMode = false, editingPostId = null;
+        let commentEditState = { pid: null, index: null, active: false };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUid = user.uid;
+                const userDoc = await getDoc(doc(db, "users", currentUid));
+                if (userDoc.exists()) {
+                    currentUserName = userDoc.data().fullName || "User";
+                    currentUserPhoto = userDoc.data().photoURL || "https://cdn-icons-png.flaticon.com/512/711/711769.png";
+                }
+                document.getElementById('userDisplay').textContent = `SYSTEM_USER: ${currentUserName.toUpperCase()}`;
+                loadPosts();
+            } else { window.location.href = "login.html"; }
+        });
+
+        // --- Optimized Cloudinary Upload (Auto detect Resource Type) ---
+        async function uploadMedia(file) {
+            const isVideo = file.type.startsWith('video');
+            const resourceType = isVideo ? 'video' : 'image';
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", "my-upload");
+            try {
+                const res = await fetch(`https://api.cloudinary.com/v1_1/dbrgjktoz/${resourceType}/upload`, { method: "POST", body: formData });
+                const data = await res.json();
+                return { url: data.secure_url, type: resourceType };
+            } catch (e) { return null; }
+        }
+
+        document.getElementById('fileInput').onchange = (e) => {
+            document.getElementById('fileName').textContent = e.target.files[0]?.name || "";
+        };
+
+        // --- Execute Post ---
+        document.getElementById('btnExecute').onclick = async () => {
+            const text = document.getElementById('postText').value.trim();
+            const file = document.getElementById('fileInput').files[0];
+            if (!text && !file && !editMode) return;
+            const btn = document.getElementById('btnExecute');
+            btn.disabled = true; btn.textContent = "UPLOADING...";
+            let mediaData = { url: "", type: "" };
+            if (file) {
+                const res = await uploadMedia(file);
+                if (res) mediaData = res;
+            }
+            try {
+                if (editMode) {
+                    const upData = { content: text };
+                    if (mediaData.url) { upData.media = mediaData.url; upData.mediaType = mediaData.type; }
+                    await updateDoc(doc(db, "posts", editingPostId), upData);
+                    window.resetEditor();
+                } else {
+                    await addDoc(collection(db, "posts"), {
+                        userId: currentUid, userName: currentUserName, userPhoto: currentUserPhoto,
+                        content: text, media: mediaData.url, mediaType: mediaData.type,
+                        createdAt: serverTimestamp(), likes: [], shares: [], comments: []
+                    });
+                }
+                document.getElementById('postText').value = "";
+                document.getElementById('fileInput').value = "";
+                document.getElementById('fileName').textContent = "";
+            } catch(e) { alert("Failed!"); }
+            btn.disabled = false; btn.textContent = "EXECUTE";
+        };
+
+        function loadPosts() {
+            onSnapshot(query(collection(db, "posts"), orderBy("createdAt", "desc")), (snapshot) => {
+                const feed = document.getElementById('newsFeed');
+                feed.innerHTML = "";
+                snapshot.forEach((postDoc) => {
+                    const post = postDoc.data();
+                    const pid = postDoc.id;
+                    const isLiked = post.likes?.includes(currentUid);
+                    const isShared = post.shares?.includes(currentUid);
+                    let mediaHTML = "";
+                    if (post.media) {
+                        mediaHTML = post.mediaType === 'video' 
+                            ? `<video src="${post.media}" controls></video>` 
+                            : `<img src="${post.media}" style="width:100%;">`;
+                    }
+                    const card = document.createElement('div');
+                    card.className = "post-card";
+                    card.innerHTML = `
+                        <div class="post-header" style="position:relative;">
+                            <img src="${post.userPhoto}" class="post-user-img">
+                            <div class="post-info"><span class="post-user-name">${post.userName}</span></div>
+                            <div class="dot-btn" onclick="window.toggleMenu('m-${pid}')">⋮</div>
+                            <div id="m-${pid}" class="menu-dropdown">
+                                ${post.userId === currentUid ? `<button onclick="window.startEdit('${pid}', \`${post.content}\`)">EDIT POST</button><button onclick="window.deletePost('${pid}')">DELETE POST</button>` : `<button>REPORT</button>`}
+                            </div>
+                        </div>
+                        <div style="margin-bottom:10px; white-space:pre-wrap;">${post.content}</div>
+                        ${mediaHTML}
+                        <div class="post-actions">
+                            <div class="action-btn ${isLiked?'liked':''}" onclick="window.handleLike('${pid}', ${isLiked})">❤️ ${post.likes?.length || 0}</div>
+                            <div class="action-btn" onclick="window.toggleComments('${pid}')">💬 ${post.comments?.length || 0}</div>
+                            <div class="action-btn ${isShared?'shared':''}" onclick="window.handleShare('${pid}', ${isShared})">🔄 ${post.shares?.length || 0}</div>
+                        </div>
+                        <div class="comment-section" id="sec-${pid}">
+                            <div id="list-${pid}"></div>
+                            <div style="display:flex; gap:5px; margin-top:10px; align-items:center;">
+                                <input type="text" id="inp-${pid}" class="comment-input" placeholder="Comment...">
+                                <label style="cursor:pointer; font-size:20px;">📷<input type="file" id="cimg-${pid}" style="display:none;"></label>
+                                <button class="btn-nav" id="cbtn-${pid}" onclick="window.addComment('${pid}')">SEND</button>
+                            </div>
+                        </div>
+                    `;
+                    feed.appendChild(card);
+                    window.renderComments(pid, post.comments);
+                });
+            });
+        }
+
+        window.renderComments = (pid, comments) => {
+            const list = document.getElementById(`list-${pid}`);
+            if(!list) return;
+            list.innerHTML = (comments || []).map((c, i) => {
+                let cMedia = "";
+                if(c.photo) {
+                    cMedia = (c.photo.includes('/video/') || c.photo.includes('.mp4'))
+                        ? `<video src="${c.photo}" controls class="comment-img"></video>`
+                        : `<img src="${c.photo}" class="comment-img">`;
+                }
+                return `
+                <div class="comment-item">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <b style="color:#fff; font-size:12px;">${c.userName}</b>
+                        <div style="position:relative;">
+                            <span class="dot-btn" style="font-size:14px;" onclick="window.toggleMenu('cm-${pid}-${i}')">⋮</span>
+                            <div id="cm-${pid}-${i}" class="menu-dropdown">
+                                ${c.userId === currentUid ? `
+                                    <button onclick="window.prepareEditComment('${pid}', ${i}, \`${c.text}\`)">EDIT</button>
+                                    <button onclick="window.deleteComment('${pid}', ${i})">DELETE</button>
+                                ` : `<button>REPORT</button>`}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size:13px; color:#0f0;">${c.text}</div>
+                    ${cMedia}
+                </div>`;
+            }).join('');
+        };
+
+        window.prepareEditComment = (pid, index, oldText) => {
+            const input = document.getElementById(`inp-${pid}`);
+            const btn = document.getElementById(`cbtn-${pid}`);
+            input.value = oldText;
+            input.classList.add('comment-input-active');
+            input.focus();
+            btn.textContent = "UPDT";
+            btn.style.borderColor = "#ff0";
+            commentEditState = { pid, index, active: true };
+            window.toggleMenu(`cm-${pid}-${index}`);
+        };
+
+        window.addComment = async (pid) => {
+            const input = document.getElementById(`inp-${pid}`);
+            const btn = document.getElementById(`cbtn-${pid}`);
+            const text = input.value.trim();
+            const file = document.getElementById(`cimg-${pid}`).files[0];
+            if(!text && !file) return;
+
+            btn.disabled = true;
+            let mediaUrl = "";
+            if(file) { const res = await uploadMedia(file); mediaUrl = res?.url || ""; }
+
+            const postRef = doc(db, "posts", pid);
+            const postSnap = await getDoc(postRef);
+            let comms = postSnap.data().comments || [];
+
+            if(commentEditState.active && commentEditState.pid === pid) {
+                // Update existing
+                comms[commentEditState.index].text = text;
+                if(mediaUrl) comms[commentEditState.index].photo = mediaUrl;
+                await updateDoc(postRef, { comments: comms });
+                commentEditState = { pid: null, index: null, active: false };
+                btn.textContent = "SEND";
+                btn.style.borderColor = "#0f0";
+                input.classList.remove('comment-input-active');
+            } else {
+                // Add new
+                await updateDoc(postRef, {
+                    comments: arrayUnion({ userId: currentUid, userName: currentUserName, text, photo: mediaUrl, time: Date.now() })
+                });
+            }
+            input.value = ""; document.getElementById(`cimg-${pid}`).value = "";
+            btn.disabled = false;
+        };
+
+        window.deleteComment = async (pid, index) => {
+            if(!confirm("Delete comment?")) return;
+            const postRef = doc(db, "posts", pid);
+            const postSnap = await getDoc(postRef);
+            const comms = postSnap.data().comments;
+            comms.splice(index, 1);
+            await updateDoc(postRef, { comments: comms });
+        };
+
+        window.handleLike = async (id, liked) => { await updateDoc(doc(db, "posts", id), { likes: liked ? arrayRemove(currentUid) : arrayUnion(currentUid) }); };
+        window.handleShare = async (id, shared) => { await updateDoc(doc(db, "posts", id), { shares: shared ? arrayRemove(currentUid) : arrayUnion(currentUid) }); };
+        window.startEdit = (id, text) => { editMode = true; editingPostId = id; document.getElementById('postText').value = text; document.getElementById('boxHeader').textContent = ">> EDIT_SEQUENCE"; document.getElementById('btnExecute').textContent = "UPDATE"; document.getElementById('btnCancelEdit').style.display = "block"; window.scrollTo(0,0); };
+        window.deletePost = async (id) => { if(confirm("Terminate post?")) await deleteDoc(doc(db, "posts", id)); };
+        
+        window.toggleMenu = (id) => { 
+            const m = document.getElementById(id); 
+            document.querySelectorAll('.menu-dropdown').forEach(el => { if(el.id !== id) el.style.display = 'none'; });
+            m.style.display = m.style.display === 'block' ? 'none' : 'block'; 
+        };
+
+        window.toggleComments = (id) => { 
+            const s = document.getElementById(`sec-${id}`); 
+            s.style.display = (s.style.display === 'none' || s.style.display === '') ? 'block' : 'none'; 
+        };
+
+        window.resetEditor = () => { editMode = false; editingPostId = null; document.getElementById('boxHeader').textContent = ">> NEW_SEQUENCE"; document.getElementById('btnCancelEdit').style.display = "none"; document.getElementById('btnExecute').textContent = "EXECUTE"; document.getElementById('postText').value = ""; };
+        document.getElementById('btnCancelEdit').onclick = window.resetEditor;
+
+        const canvas = document.getElementById('bg'); const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const drops = Array(Math.floor(canvas.width/16)).fill(1);
+        function draw() {
+            ctx.fillStyle = "rgba(0,0,0,0.1)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#0f0"; ctx.font = "15px monospace";
+            drops.forEach((y, i) => {
+                ctx.fillText(String.fromCharCode(33+Math.random()*94), i*16, y*16);
+                if(y*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            });
+        }
+        setInterval(draw, 35);
+        window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    </script>
+</body>
+</html>
