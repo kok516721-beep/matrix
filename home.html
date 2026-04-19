@@ -10,12 +10,29 @@
         #bg { position: fixed; top: 0; left: 0; z-index: -1; opacity: 0.6; }
 
         /* Navbar Customization */
-        .navbar { border-bottom: 2px solid var(--matrix-green); padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: rgba(0, 20, 0, 0.9); position: sticky; top: 0; z-index: 100; }
-        .nav-links { display: flex; gap: 10px; align-items: center; }
-        .btn-nav { border: 1px solid var(--matrix-green); color: var(--matrix-green); background: transparent; padding: 6px 12px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold; text-transform: uppercase; transition: 0.3s; position: relative; }
-        .btn-nav:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
-        .noti-badge { position: absolute; top: -5px; right: -5px; background: #f00; color: #fff; border-radius: 50%; padding: 2px 5px; font-size: 8px; display: none; }
+        /* Navbar Button များကို အရွယ်အစား တူအောင် ညှိခြင်း */
+.nav-links { 
+    display: flex; 
+    gap: 8px; 
+    align-items: center; 
+}
 
+.btn-nav { 
+    border: 1px solid var(--matrix-green); 
+    color: var(--matrix-green); 
+    background: transparent; 
+    padding: 8px 12px; /* Profile နဲ့ အမြင့်တူအောင် padding ညှိထားတယ် */
+    cursor: pointer; 
+    text-decoration: none; 
+    font-size: 11px; 
+    font-weight: bold; 
+    text-transform: uppercase; 
+    transition: 0.3s; 
+    position: relative; 
+    min-width: 70px; /* ဒီကောင်က button အားလုံးကို width တူစေမှာပါ */
+    text-align: center;
+    display: inline-block;
+}
         /* Panels for New Features */
         #notiPanel, #userDiscovery { display: none; border: 1px solid var(--matrix-green); background: rgba(0, 20, 0, 0.95); padding: 15px; margin-bottom: 20px; box-shadow: 0 0 15px var(--matrix-glow); }
         .list-item { border-bottom: 1px solid #030; padding: 10px 0; display: flex; align-items: center; justify-content: space-between; }
@@ -73,13 +90,18 @@
     </div>
 
     <div class="navbar">
-        <div id="userDisplay">[ CONNECTING... ]</div>
-        <div class="nav-links">
-            <div class="btn-nav" onclick="window.toggleSection('notiPanel')">🔔 NOTI <span id="notiCount" class="noti-badge">0</span></div>
-            <div class="btn-nav" onclick="window.toggleSection('userDiscovery')">🔍 FIND</div>
-            <a href="profile.html" class="btn-nav">PROFILE</a>
+    <div id="userDisplay" style="font-size: 12px; color: #fff; border: 1px solid #fff; padding: 7px;">[ CONNECTING... ]</div>
+    <div class="nav-links">
+        <div class="btn-nav" onclick="window.toggleSection('notiPanel')">
+            NOTI <span id="notiCount" class="noti-badge">0</span>
         </div>
+        <div class="btn-nav" onclick="window.toggleSection('userDiscovery')">
+            FIND
+        </div>
+        <a href="profile.html" class="btn-nav">PROFILE</a>
     </div>
+    </div>
+    
 
     <div class="main-container">
         <div id="notiPanel">
